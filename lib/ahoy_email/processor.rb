@@ -91,27 +91,29 @@ module AhoyEmail
 
         doc = Nokogiri::HTML(body.raw_source)
         doc.css("a[href]").each do |link|
-          # utm params first
-          if options[:utm_params] and !skip_attribute?(link, "utm-params")
-            uri = Addressable::URI.parse(link["href"])
-            params = uri.query_values || {}
-            %w[utm_source utm_medium utm_term utm_content utm_campaign].each do |key|
-              params[key] ||= options[key.to_sym] if options[key.to_sym]
+          unless link["href"].blank?
+            # utm params first
+            if options[:utm_params] and !skip_attribute?(link, "utm-params")
+              uri = Addressable::URI.parse(link["href"])
+              params = uri.query_values || {}
+              %w[utm_source utm_medium utm_term utm_content utm_campaign].each do |key|
+                params[key] ||= options[key.to_sym] if options[key.to_sym]
+              end
+              uri.query_values = params
+              link["href"] = uri.to_s
             end
-            uri.query_values = params
-            link["href"] = uri.to_s
-          end
 
-          if options[:click] and !skip_attribute?(link, "click")
-            signature = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha1"), AhoyEmail.secret_token, link["href"])
-            link["href"] =
-              url_for(
-                controller: "ahoy/messages",
-                action: "click",
-                id: ahoy_message.token,
-                url: link["href"],
-                signature: signature
-              )
+            if options[:click] and !skip_attribute?(link, "click")
+              signature = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha1"), AhoyEmail.secret_token, link["href"])
+              link["href"] =
+                url_for(
+                  controller: "ahoy/messages",
+                  action: "click",
+                  id: ahoy_message.token,
+                  url: link["href"],
+                  signature: signature
+                )
+            end
           end
         end
 
